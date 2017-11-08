@@ -1,0 +1,64 @@
+#!/usr/bin/env ruby
+
+require 'json'
+require 'set'
+require 'optparse'
+require 'optparse'
+
+
+opts = {:file => 'compile_commands.json', :output=>'CMakeLists.txt', :dir=>'..'}
+
+
+OptionParser.new do |o|
+  o.banner = "Usage: generate_cmake [options]"
+  o.on '-f', 'compilation database' do |v|
+    opts[:file] = v
+  end
+  o.on '-o', 'output file' do |v|
+    opts[:output] = v
+  end
+  o.on '-d', 'Kernel source root directory' do |v|
+    opts[:dir] = v
+  end
+  o.on_tail '-h', 'print help' do
+    puts o
+    exit
+  end
+end.parse!
+
+js = JSON.parse File.read opts[:file]
+open(opts[:output], 'w') do |f|
+  f.puts 'cmake_minimum_required(VERSION 2.8.8)'
+  f.puts 'project(kernel)'
+  f.puts 'add_library(kernel OBJECT'
+  js.each {|j| f.puts '    ' + j['file']}  ## add each file
+  f.puts ")\n\n"
+
+  escaped_quote='\\' + '"'
+
+  ## set compile options for each file
+  js.each do |j|
+    args = j['arguments']
+
+    ## slight hackage
+    ## remove "cc" from the beginning, and "-o out in" from the end
+    unescaped = args.slice(1..-4).join ' '
+
+    ## severe hackage
+    ## hack 1 -- had to repeat gsub,because for some reason adding more than two "//" wasn't working..
+    ## properly escape options for CMake
+    escaped = ((unescaped.gsub(/"/, escaped_quote)).gsub(/"/, escaped_quote)).gsub(/"/, escaped_quote)
+
+    ##hack #2 -- linux build specifies include files/dirs assuming the build is done in-tree
+    escaped = escaped.gsub /-include\s/, "-include #{opts[:dir]}/"
+    escaped = escaped.gsub /\s-I/, " -I#{opts[:dir]}/"
+    escaped = escaped.gsub /-Wp,-MD,/, "-Wp,-MD,#{opts[:dir]}/"
+
+    ##finally
+    f.puts 'set_source_files_properties('+j['file']+' PROPERTIES COMPILE_FLAGS "' + escaped +'")'
+  end
+end
+
+
+
+
