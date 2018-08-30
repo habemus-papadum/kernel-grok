@@ -57,7 +57,7 @@ cd ..
 git clone https://github.com/habemus-papadum/kernel-grok.git
 
 cd linux-stable
-../kernel-grok/generate-cmake  ## creates CMakeLists.txt
+../kernel-grok/generate_cmake  ## creates CMakeLists.txt
 
 ## test that generated cmake is valid
 mkdir build
