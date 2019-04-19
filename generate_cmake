@@ -3,7 +3,7 @@
 require 'json'
 require 'set'
 require 'optparse'
-require 'optparse'
+require 'pathname'
 
 
 opts = {:file => 'compile_commands.json', :output=>'CMakeLists.txt', :dir=>'..'}
@@ -31,7 +31,17 @@ open(opts[:output], 'w') do |f|
   f.puts 'cmake_minimum_required(VERSION 2.8.8)'
   f.puts 'project(kernel)'
   f.puts 'add_library(kernel OBJECT'
-  js.each {|j| f.puts '    ' + j['file']}  ## add each file
+
+  # assumption is compile_commands.json is in the root of the source tree,
+  # irrespective of opts[:dir] which refers to the out of tree build directory
+  source_root = Pathname.new(opts[:file]).parent.realpath
+
+  # add each file
+  js.each do |j|
+    directory = Pathname.new(j['directory']).relative_path_from(source_root)
+    f.puts '    ' + directory.join(j['file']).to_s()
+  end
+
   f.puts ")\n\n"
 
   escaped_quote='\\' + '"'
